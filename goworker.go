@@ -45,10 +45,22 @@ func Init() error {
 // API to change drastically.
 func GetConn() (*RedisConn, error) {
 	resource, err := pool.Get(ctx)
-
 	if err != nil {
 		return nil, err
 	}
+
+        // Applied suggested fix from https://github.com/benmanns/goworker/issues/15
+        // to force a redis reconnect on disconnect.
+        // Performs simple connection check. Redial if needed
+        _, err = resource.(*RedisConn).Do("PING")
+        if err != nil {
+            resource.(*RedisConn).Close()
+            resource, err = redisConnFromUri(uri)
+            if err != nil {
+                return nil, err
+            }
+        }
+
 	return resource.(*RedisConn), nil
 }
 
